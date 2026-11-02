@@ -220,9 +220,16 @@ class _DeskHomeState extends State<DeskHome> {
               title: Text(d.title.isEmpty ? '(Untitled draft)' : d.title),
               subtitle: Text(d.status + ' • revision ' + d.revision.toString() + ' • ' + d.attachments.length.toString() + ' image(s)'),
               onTap: () => _editDraft(d),
-              trailing: PopupMenuButton<String>(onSelected: (v) => v == 'edit' ? _editDraft(d) : _ready(d),
-                itemBuilder: (_) => [const PopupMenuItem(value: 'edit', child: Text('Edit')),
-                  if (d.status != 'approved') const PopupMenuItem(value: 'ready', child: Text('Submit for review'))])));
+              trailing: PopupMenuButton<String>(onSelected: (v) {
+                if (v == 'edit') { _editDraft(d); }
+                else if (v == 'approve') { _approve(d); }
+                else { _ready(d); }
+              }, itemBuilder: (_) => [
+                const PopupMenuItem(value: 'edit', child: Text('Edit')),
+                if (d.status == 'readyForReview') const PopupMenuItem(value: 'approve', child: Text('Owner approve')),
+                if (d.status != 'approved' && d.status != 'readyForReview')
+                  const PopupMenuItem(value: 'ready', child: Text('Submit for review')),
+              ])));
           })),
       ]),
       floatingActionButton: tab < 2 ? FloatingActionButton.extended(onPressed: _newDraft, icon: const Icon(Icons.add), label: const Text('New draft')) : null,
