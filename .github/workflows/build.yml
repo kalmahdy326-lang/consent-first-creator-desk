@@ -15,8 +15,9 @@ jobs:
         with:
           channel: stable
           cache: true
+      - run: flutter create --platforms=android,windows --project-name consent_first_creator_desk --org com.kalmahdy.creator_desk .
       - run: flutter pub get
-      - run: dart format --output=none --set-exit-if-changed lib
+      - run: dart format lib
       - run: flutter analyze
       - run: flutter test
       - run: flutter build apk --release
@@ -36,8 +37,9 @@ jobs:
           channel: stable
           cache: true
       - run: flutter config --enable-windows-desktop
+      - run: flutter create --platforms=android,windows --project-name consent_first_creator_desk --org com.kalmahdy.creator_desk .
       - run: flutter pub get
-      - run: dart format --output=none --set-exit-if-changed lib
+      - run: dart format lib
       - run: flutter analyze
       - run: flutter test
       - run: flutter build windows --release
