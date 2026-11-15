@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:path_provider/path_provider.dart';
 
 void main() => runApp(const CreatorDeskApp());
@@ -31,15 +31,34 @@ class Draft {
 }
 
 class CreatorDeskApp extends StatelessWidget {
-  const CreatorDeskApp({super.key});
+  const CreatorDeskApp({
+    super.key,
+    this.supportDirectoryProvider,
+    this.loadFromDisk = true,
+  });
+
+  final Future<Directory> Function()? supportDirectoryProvider;
+  final bool loadFromDisk;
+
   @override
   Widget build(BuildContext context) => MaterialApp(title: 'Consent-First Creator Desk',
     theme: ThemeData(colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xff345b66)), useMaterial3: true),
-    home: const DeskHome());
+    home: DeskHome(
+      supportDirectoryProvider: supportDirectoryProvider,
+      loadFromDisk: loadFromDisk,
+    ));
 }
 
 class DeskHome extends StatefulWidget {
-  const DeskHome({super.key});
+  const DeskHome({
+    super.key,
+    this.supportDirectoryProvider,
+    this.loadFromDisk = true,
+  });
+
+  final Future<Directory> Function()? supportDirectoryProvider;
+  final bool loadFromDisk;
+
   @override
   State<DeskHome> createState() => _DeskHomeState();
 }
@@ -53,13 +72,20 @@ class _DeskHomeState extends State<DeskHome> {
   Directory? dataDir;
 
   @override
-  void initState() { super.initState(); _load(); }
+  void initState() {
+    super.initState();
+    if (widget.loadFromDisk) {
+      _load();
+    } else {
+      loading = false;
+    }
+  }
 
   Future<File> _dataFile(String name) async {
-    final base = dataDir ?? await getApplicationSupportDirectory();
+    final base = dataDir ?? await (widget.supportDirectoryProvider ?? getApplicationSupportDirectory)();
     dataDir = base;
     await base.create(recursive: true);
-    return File(base.path + Platform.pathSeparator + name);
+    return File('${base.path}${Platform.pathSeparator}$name');
   }
 
   Future<void> _load() async {
@@ -72,7 +98,7 @@ class _DeskHomeState extends State<DeskHome> {
         audit.addAll(((j['audit'] as List?) ?? []).cast<String>());
       }
     } catch (_) { audit.add('Could not read prior local data; starting with an empty view.'); }
-    if (mounted) setState(() => loading = false);
+    if (mounted) { setState(() => loading = false); }
   }
 
   Future<void> _save() async {
@@ -82,27 +108,27 @@ class _DeskHomeState extends State<DeskHome> {
   }
 
   void _log(String message) {
-    audit.insert(0, DateTime.now().toIso8601String() + ' — ' + message);
-    if (audit.length > 500) audit.removeRange(500, audit.length);
+    audit.insert(0, '${DateTime.now().toIso8601String()} — $message');
+    if (audit.length > 500) { audit.removeRange(500, audit.length); }
   }
 
   Future<void> _newDraft() async {
-    if (killSwitch) return _notice('Kill switch is active. Turn it off to make changes.');
+    if (killSwitch) { return _notice('Kill switch is active. Turn it off to make changes.'); }
     final title = TextEditingController();
     final ok = await showDialog<bool>(context: context, builder: (c) => AlertDialog(
       title: const Text('New draft'),
       content: TextField(controller: title, autofocus: true, decoration: const InputDecoration(labelText: 'Draft title')),
       actions: [TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
         FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Create'))]));
-    if (ok != true || title.text.trim().isEmpty) return;
+    if (ok != true || title.text.trim().isEmpty) { return; }
     final d = Draft(id: DateTime.now().microsecondsSinceEpoch.toString(), title: title.text.trim());
-    setState(() { drafts.insert(0, d); _log('Draft created: ' + d.title); });
+    setState(() { drafts.insert(0, d); _log('Draft created: ${d.title}'); });
     await _save();
-    if (mounted) _editDraft(d);
+    if (mounted) { _editDraft(d); }
   }
 
   Future<void> _editDraft(Draft d) async {
-    if (killSwitch) return _notice('Kill switch is active. Turn it off to make changes.');
+    if (killSwitch) { return _notice('Kill switch is active. Turn it off to make changes.'); }
     final title = TextEditingController(text: d.title);
     final body = TextEditingController(text: d.body);
     final result = await showDialog<bool>(context: context, builder: (c) => StatefulBuilder(builder: (c, refresh) =>
@@ -116,34 +142,35 @@ class _DeskHomeState extends State<DeskHome> {
             title: const Text('AI assistance disclosed'), contentPadding: EdgeInsets.zero),
           SwitchListTile(value: d.audienceWarning, onChanged: (v) => refresh(() => d.audienceWarning = v),
             title: const Text('Audience warning reviewed'), contentPadding: EdgeInsets.zero),
-          Align(alignment: Alignment.centerLeft, child: Text('Images attached: ' + d.attachments.length.toString())),
+          Align(alignment: Alignment.centerLeft, child: Text('Images attached: ${d.attachments.length}')),
           Align(alignment: Alignment.centerLeft, child: TextButton.icon(
             onPressed: () async { await _importImage(d); refresh(() {}); },
             icon: const Icon(Icons.add_photo_alternate_outlined), label: const Text('Import image (adult confirmation required)'))),
           ...d.attachments.map((a) => ListTile(dense: true, leading: const Icon(Icons.image_outlined),
-            title: Text(a['name'] ?? 'Image'), subtitle: Text('Provenance: ' + (a['provenance'] ?? '')))),
+            title: Text(a['name'] ?? 'Image'), subtitle: Text('Provenance: ${a['provenance'] ?? ''}'))),
         ]))),
         actions: [TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
           FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Save draft'))])));
-    if (result != true) return;
+    if (result != true) { return; }
     setState(() {
       d.title = title.text.trim(); d.body = body.text; d.revision++;
       d.status = 'draft'; d.approvedRevision = null;
-      _log('Draft edited; review and approval invalidated: ' + d.title);
+      _log('Draft edited; review and approval invalidated: ${d.title}');
     });
     await _save();
   }
 
   Future<void> _importImage(Draft d) async {
-    if (killSwitch) return _notice('Kill switch is active.');
+    if (killSwitch) { return _notice('Kill switch is active.'); }
     final confirmed = await showDialog<bool>(context: context, builder: (c) => AlertDialog(
       title: const Text('Adult-content safety confirmation'),
       content: const Text('Confirm before each import: I am an adult, the depicted person is clearly an adult, and the material is consensual. Do not import youth-looking, non-consensual, or unlawfully obtained material.'),
       actions: [TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
         FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('I confirm'))]));
-    if (confirmed != true) return;
+    if (confirmed != true) { return; }
     final picked = await FilePicker.platform.pickFiles(type: FileType.image, allowMultiple: false, withData: false);
-    if (picked == null || picked.files.isEmpty) return;
+    if (!mounted) { return; }
+    if (picked == null || picked.files.isEmpty) { return; }
     final provenance = TextEditingController();
     final entered = await showDialog<bool>(context: context, builder: (c) => AlertDialog(
       title: const Text('Image provenance'),
@@ -151,55 +178,55 @@ class _DeskHomeState extends State<DeskHome> {
         decoration: const InputDecoration(labelText: 'Source, rights/permission basis, and notes', hintText: 'Required before review')),
       actions: [TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
         FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Save provenance'))]));
-    if (entered != true || provenance.text.trim().isEmpty) return _notice('Image not imported: provenance is required.');
+    if (entered != true || provenance.text.trim().isEmpty) { return _notice('Image not imported: provenance is required.'); }
     final path = picked.files.single.path;
-    if (path == null) return _notice('Could not access the selected file.');
+    if (path == null) { return _notice('Could not access the selected file.'); }
     final placeholder = await _dataFile('placeholder.txt');
-    final mediaDir = Directory(placeholder.parent.path + Platform.pathSeparator + 'media');
+    final mediaDir = Directory('${placeholder.parent.path}${Platform.pathSeparator}media');
     await mediaDir.create(recursive: true);
     final safeName = picked.files.single.name.replaceAll(RegExp(r'[^a-zA-Z0-9._-]'), '_');
-    final name = DateTime.now().microsecondsSinceEpoch.toString() + '_' + safeName;
-    final copied = await File(path).copy(mediaDir.path + Platform.pathSeparator + name);
+    final name = '${DateTime.now().microsecondsSinceEpoch}_$safeName';
+    final copied = await File(path).copy('${mediaDir.path}${Platform.pathSeparator}$name');
     setState(() {
       d.attachments = [...d.attachments, {'name': picked.files.single.name, 'path': copied.path, 'provenance': provenance.text.trim()}];
       d.revision++; d.status = 'draft'; d.approvedRevision = null;
-      _log('Image imported with provenance: ' + picked.files.single.name);
+      _log('Image imported with provenance: ${picked.files.single.name}');
     });
     await _save();
   }
 
   Future<void> _ready(Draft d) async {
-    if (killSwitch) return _notice('Kill switch is active.');
+    if (killSwitch) { return _notice('Kill switch is active.'); }
     if (d.title.trim().isEmpty || d.body.trim().isEmpty || !d.aiDisclosure || !d.audienceWarning ||
         d.attachments.any((a) => (a['provenance'] ?? '').trim().isEmpty)) {
       return _notice('Before review: add a title and draft text, confirm AI disclosure and audience warning, and ensure every image has provenance.');
     }
-    setState(() { d.status = 'readyForReview'; d.approvedRevision = null; _log('Draft queued for owner review: ' + d.title); });
+    setState(() { d.status = 'readyForReview'; d.approvedRevision = null; _log('Draft queued for owner review: ${d.title}'); });
     await _save();
     _notice('Draft is ready for owner review. Nothing has been published.');
   }
 
   Future<void> _approve(Draft d) async {
-    if (killSwitch) return _notice('Kill switch is active.');
+    if (killSwitch) { return _notice('Kill switch is active.'); }
     final yes = await showDialog<bool>(context: context, builder: (c) => AlertDialog(
       title: const Text('Owner approval'),
       content: const Text('Approve this exact revision for manual owner publishing? This app will not publish it for you.'),
       actions: [TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
         FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Approve revision'))]));
-    if (yes != true) return;
-    setState(() { d.status = 'approved'; d.approvedRevision = d.revision; _log('Owner approved revision ' + d.revision.toString() + ': ' + d.title); });
+    if (yes != true) { return; }
+    setState(() { d.status = 'approved'; d.approvedRevision = d.revision; _log('Owner approved revision ${d.revision}: ${d.title}'); });
     await _save();
   }
 
   Future<void> _notice(String text) async {
-    if (!mounted) return;
+    if (!mounted) { return; }
     await showDialog<void>(context: context, builder: (c) => AlertDialog(content: Text(text),
       actions: [FilledButton(onPressed: () => Navigator.pop(c), child: const Text('OK'))]));
   }
 
   @override
   Widget build(BuildContext context) {
-    if (loading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    if (loading) { return const Scaffold(body: Center(child: CircularProgressIndicator())); }
     final visible = tab == 1 ? drafts.where((d) => d.status == 'readyForReview').toList() : drafts;
     return Scaffold(appBar: AppBar(title: const Text('Consent-First Creator Desk'),
       actions: [IconButton(tooltip: 'New draft', onPressed: _newDraft, icon: const Icon(Icons.add))]),
@@ -218,7 +245,7 @@ class _DeskHomeState extends State<DeskHome> {
             return Card(margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6), child: ListTile(
               leading: Icon(d.status == 'approved' ? Icons.verified_outlined : d.status == 'readyForReview' ? Icons.rate_review_outlined : Icons.edit_note),
               title: Text(d.title.isEmpty ? '(Untitled draft)' : d.title),
-              subtitle: Text(d.status + ' • revision ' + d.revision.toString() + ' • ' + d.attachments.length.toString() + ' image(s)'),
+              subtitle: Text('${d.status} • revision ${d.revision} • ${d.attachments.length} image(s)'),
               onTap: () => _editDraft(d),
               trailing: PopupMenuButton<String>(onSelected: (v) {
                 if (v == 'edit') { _editDraft(d); }
