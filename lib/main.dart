@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:path_provider/path_provider.dart';
 
 void main() => runApp(const CreatorDeskApp());
@@ -102,7 +102,7 @@ class _DeskHomeState extends State<DeskHome> {
   }
 
   Future<void> _editDraft(Draft d) async {
-    if (killSwitch) return _notice('Kill switch is active. Turn it off to make changes.');
+    if (killSwitch) { return _notice('Kill switch is active. Turn it off to make changes.'); }
     final title = TextEditingController(text: d.title);
     final body = TextEditingController(text: d.body);
     final result = await showDialog<bool>(context: context, builder: (c) => StatefulBuilder(builder: (c, refresh) =>
