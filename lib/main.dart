@@ -31,20 +31,33 @@ class Draft {
 }
 
 class CreatorDeskApp extends StatelessWidget {
-  const CreatorDeskApp({super.key, this.supportDirectoryProvider});
+  const CreatorDeskApp({
+    super.key,
+    this.supportDirectoryProvider,
+    this.loadFromDisk = true,
+  });
 
   final Future<Directory> Function()? supportDirectoryProvider;
+  final bool loadFromDisk;
 
   @override
   Widget build(BuildContext context) => MaterialApp(title: 'Consent-First Creator Desk',
     theme: ThemeData(colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xff345b66)), useMaterial3: true),
-    home: DeskHome(supportDirectoryProvider: supportDirectoryProvider));
+    home: DeskHome(
+      supportDirectoryProvider: supportDirectoryProvider,
+      loadFromDisk: loadFromDisk,
+    ));
 }
 
 class DeskHome extends StatefulWidget {
-  const DeskHome({super.key, this.supportDirectoryProvider});
+  const DeskHome({
+    super.key,
+    this.supportDirectoryProvider,
+    this.loadFromDisk = true,
+  });
 
   final Future<Directory> Function()? supportDirectoryProvider;
+  final bool loadFromDisk;
 
   @override
   State<DeskHome> createState() => _DeskHomeState();
@@ -59,7 +72,14 @@ class _DeskHomeState extends State<DeskHome> {
   Directory? dataDir;
 
   @override
-  void initState() { super.initState(); _load(); }
+  void initState() {
+    super.initState();
+    if (widget.loadFromDisk) {
+      _load();
+    } else {
+      loading = false;
+    }
+  }
 
   Future<File> _dataFile(String name) async {
     final base = dataDir ?? await (widget.supportDirectoryProvider ?? getApplicationSupportDirectory)();
