@@ -170,7 +170,7 @@ class _DeskHomeState extends State<DeskHome> {
   }
 
   Future<void> _ready(Draft d) async {
-    if (killSwitch) return _notice('Kill switch is active.');
+    if (killSwitch) { return _notice('Kill switch is active.'); }
     if (d.title.trim().isEmpty || d.body.trim().isEmpty || !d.aiDisclosure || !d.audienceWarning ||
         d.attachments.any((a) => (a['provenance'] ?? '').trim().isEmpty)) {
       return _notice('Before review: add a title and draft text, confirm AI disclosure and audience warning, and ensure every image has provenance.');
@@ -181,7 +181,7 @@ class _DeskHomeState extends State<DeskHome> {
   }
 
   Future<void> _approve(Draft d) async {
-    if (killSwitch) return _notice('Kill switch is active.');
+    if (killSwitch) { return _notice('Kill switch is active.'); }
     final yes = await showDialog<bool>(context: context, builder: (c) => AlertDialog(
       title: const Text('Owner approval'),
       content: const Text('Approve this exact revision for manual owner publishing? This app will not publish it for you.'),
